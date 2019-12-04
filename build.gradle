@@ -19,6 +19,10 @@ dependencies {
 		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
 	}
 	testImplementation 'org.springframework.security:spring-security-test'
+
+	compile("io.jsonwebtoken:jjwt-api:0.10.7")
+	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.10.7")
+	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.10.7")
 }
 
 test {
