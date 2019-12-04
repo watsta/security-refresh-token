@@ -1,15 +1,72 @@
 package hu.krisz.securityrefreshtoken.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import hu.krisz.securityrefreshtoken.security.CredentialsAuthenticationSuccessHandler;
+import hu.krisz.securityrefreshtoken.security.token.access.AccessTokenService;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @EnableWebSecurity
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+    private static final String LOGIN_URL = "/login";
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth
+                .inMemoryAuthentication()
+                .withUser("user")
+                .password("{noop}password")
+                .roles("admin");
+
+        auth.authenticationProvider(daoAuthenticationProvider());
+    }
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        http.authorizeRequests(requests ->
-                requests.anyRequest().permitAll()
-        );
+        http.authorizeRequests(configurer ->
+                configurer
+                        .antMatchers(HttpMethod.POST, LOGIN_URL).permitAll()
+                        .anyRequest().authenticated()
+        ).csrf(configurer ->
+                configurer.disable()
+        ).sessionManagement(configurer ->
+                configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        ).addFilter(usernamePasswordAuthenticationFilter());
+    }
+
+    private UsernamePasswordAuthenticationFilter usernamePasswordAuthenticationFilter() throws Exception {
+        var requestMatcher = new AntPathRequestMatcher(LOGIN_URL, HttpMethod.POST.toString());
+        var filter = new UsernamePasswordAuthenticationFilter();
+        filter.setRequiresAuthenticationRequestMatcher(requestMatcher);
+        filter.setAuthenticationManager(authenticationManager());
+        filter.setAuthenticationSuccessHandler(credentialsAuthenticationSuccessHandler());
+        return filter;
+    }
+
+    private CredentialsAuthenticationSuccessHandler credentialsAuthenticationSuccessHandler() {
+        return new CredentialsAuthenticationSuccessHandler(createAccessTokenService(), objectMapper);
+    }
+
+    private AccessTokenService createAccessTokenService() {
+        return new AccessTokenService(Keys.secretKeyFor(SignatureAlgorithm.HS512), 300);
+    }
+
+    private DaoAuthenticationProvider daoAuthenticationProvider() {
+        var authenticationProvider = new DaoAuthenticationProvider();
+        authenticationProvider.setUserDetailsService(userDetailsService());
+        return authenticationProvider;
     }
 }
