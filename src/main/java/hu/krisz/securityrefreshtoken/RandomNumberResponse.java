@@ -1,10 +1,13 @@
 package hu.krisz.securityrefreshtoken;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+
 import java.util.Objects;
 
 public class RandomNumberResponse {
     private final int randomNumber;
 
+    @JsonCreator
     public RandomNumberResponse(int randomNumber) {
         this.randomNumber = randomNumber;
     }
