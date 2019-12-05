@@ -37,7 +37,9 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         var authHeader = request.getHeader("Authorization");
         if (authHeader == null) {
-            throw new InvalidTokenException("invalid token");
+            LOGGER.info("missing authorization header, can't authenticate request");
+            filterChain.doFilter(request, response);
+            return;
         }
         var token = authHeader.replace("Bearer ", "");
 
@@ -45,8 +47,9 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         try {
             parsedToken = accessTokenService.parse(token);
         } catch (JwtException e) {
-            LOGGER.info("could not parse token: {}", token, e);
-            throw e;
+            LOGGER.info("could not parse token: '{}', failed to authenticate request", token, e);
+            filterChain.doFilter(request, response);
+            return;
         }
 
         var authentication = new UsernamePasswordAuthenticationToken(
