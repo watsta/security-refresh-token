@@ -42,6 +42,7 @@ public class CredentialsAuthenticationSuccessHandler implements AuthenticationSu
         var userTokenInformation = new UserTokenInformation(userDetails.getUsername(), userDetails.getAuthorities());
         var accessToken = accessTokenService.create(userTokenInformation);
         var refreshToken = refreshTokenService.generateRefreshToken(userDetails.getUsername());
+        refreshTokenService.storeRefreshToken(refreshToken);
         var tokenResponse = new TokenResponse(refreshToken.getTokenValue(), accessToken.getTokenValue(), accessToken.expiresIn());
 
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
