@@ -2,10 +2,12 @@ package hu.krisz.securityrefreshtoken.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.krisz.securityrefreshtoken.security.CredentialsAuthenticationSuccessHandler;
+import hu.krisz.securityrefreshtoken.security.JwtAuthorizationFilter;
 import hu.krisz.securityrefreshtoken.security.token.access.AccessTokenService;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -44,7 +46,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 configurer.disable()
         ).sessionManagement(configurer ->
                 configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        ).addFilter(usernamePasswordAuthenticationFilter());
+        ).addFilter(usernamePasswordAuthenticationFilter())
+        .addFilterAfter(jwtAuthorizationFilterBean(), UsernamePasswordAuthenticationFilter.class);
     }
 
     private UsernamePasswordAuthenticationFilter usernamePasswordAuthenticationFilter() throws Exception {
@@ -52,15 +55,17 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
         var filter = new UsernamePasswordAuthenticationFilter();
         filter.setRequiresAuthenticationRequestMatcher(requestMatcher);
         filter.setAuthenticationManager(authenticationManager());
-        filter.setAuthenticationSuccessHandler(credentialsAuthenticationSuccessHandler());
+        filter.setAuthenticationSuccessHandler(credentialsAuthenticationSuccessHandlerBean());
         return filter;
     }
 
-    private CredentialsAuthenticationSuccessHandler credentialsAuthenticationSuccessHandler() {
-        return new CredentialsAuthenticationSuccessHandler(createAccessTokenService(), objectMapper);
+    @Bean
+    public CredentialsAuthenticationSuccessHandler credentialsAuthenticationSuccessHandlerBean() {
+        return new CredentialsAuthenticationSuccessHandler(accessTokenServiceBean(), objectMapper);
     }
 
-    private AccessTokenService createAccessTokenService() {
+    @Bean
+    public AccessTokenService accessTokenServiceBean() {
         return new AccessTokenService(Keys.secretKeyFor(SignatureAlgorithm.HS512), 300);
     }
 
@@ -68,5 +73,10 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
         var authenticationProvider = new DaoAuthenticationProvider();
         authenticationProvider.setUserDetailsService(userDetailsService());
         return authenticationProvider;
+    }
+
+    @Bean
+    public JwtAuthorizationFilter jwtAuthorizationFilterBean() {
+        return new JwtAuthorizationFilter(accessTokenServiceBean());
     }
 }
