@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.krisz.securityrefreshtoken.security.token.TokenResponse;
 import hu.krisz.securityrefreshtoken.security.token.UserTokenInformation;
 import hu.krisz.securityrefreshtoken.security.token.access.AccessTokenService;
+import hu.krisz.securityrefreshtoken.security.token.refresh.RefreshTokenService;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
@@ -20,11 +21,14 @@ import java.io.IOException;
  */
 public class CredentialsAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
     private final AccessTokenService accessTokenService;
+    private final RefreshTokenService refreshTokenService;
     private final ObjectMapper objectMapper;
 
     public CredentialsAuthenticationSuccessHandler(AccessTokenService accessTokenService,
+                                                   RefreshTokenService refreshTokenService,
                                                    ObjectMapper objectMapper) {
         this.accessTokenService = accessTokenService;
+        this.refreshTokenService = refreshTokenService;
         this.objectMapper = objectMapper;
     }
 
@@ -37,7 +41,8 @@ public class CredentialsAuthenticationSuccessHandler implements AuthenticationSu
 
         var userTokenInformation = new UserTokenInformation(userDetails.getUsername(), userDetails.getAuthorities());
         var accessToken = accessTokenService.create(userTokenInformation);
-        var tokenResponse = new TokenResponse(accessToken.getTokenValue(), accessToken.expiresIn());
+        var refreshToken = refreshTokenService.generateRefreshToken(userDetails.getUsername());
+        var tokenResponse = new TokenResponse(refreshToken.getTokenValue(), accessToken.getTokenValue(), accessToken.expiresIn());
 
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().print(objectMapper.writeValueAsString(tokenResponse));

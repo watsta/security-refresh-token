@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.krisz.securityrefreshtoken.security.CredentialsAuthenticationSuccessHandler;
 import hu.krisz.securityrefreshtoken.security.JwtAuthorizationFilter;
 import hu.krisz.securityrefreshtoken.security.token.access.AccessTokenService;
+import hu.krisz.securityrefreshtoken.security.token.refresh.InMemoryRefreshTokenStore;
+import hu.krisz.securityrefreshtoken.security.token.refresh.RefreshTokenService;
+import hu.krisz.securityrefreshtoken.security.token.refresh.RefreshTokenStore;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,12 +64,16 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
     @Bean
     public CredentialsAuthenticationSuccessHandler credentialsAuthenticationSuccessHandlerBean() {
-        return new CredentialsAuthenticationSuccessHandler(accessTokenServiceBean(), objectMapper);
+        return new CredentialsAuthenticationSuccessHandler(accessTokenServiceBean(), refreshTokenService(), objectMapper);
     }
 
     @Bean
     public AccessTokenService accessTokenServiceBean() {
         return new AccessTokenService(Keys.secretKeyFor(SignatureAlgorithm.HS512), 300);
+    }
+
+    private RefreshTokenService refreshTokenService() {
+        return new RefreshTokenService(refreshTokenStore(), 864_000);
     }
 
     private DaoAuthenticationProvider daoAuthenticationProvider() {
@@ -78,5 +85,9 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     @Bean
     public JwtAuthorizationFilter jwtAuthorizationFilterBean() {
         return new JwtAuthorizationFilter(accessTokenServiceBean());
+    }
+
+    private RefreshTokenStore refreshTokenStore() {
+        return new InMemoryRefreshTokenStore();
     }
 }
