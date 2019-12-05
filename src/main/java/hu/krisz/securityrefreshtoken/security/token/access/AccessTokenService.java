@@ -23,15 +23,15 @@ public class AccessTokenService {
         this.accessTokenExpirationSeconds = accessTokenExpirationSeconds;
     }
 
-    public AccessToken create(String userId, Collection<? extends GrantedAuthority> grantedAuthorities) {
+    public AccessToken create(UserTokenInformation userTokenInformation) {
         var expiryDate = calculateExpiryDate();
         var tokenValue = Jwts.builder()
                 .signWith(secretKey)
                 .setIssuer(ISSUER)
                 .setAudience(AUDIENCE)
-                .setSubject(userId)
+                .setSubject(userTokenInformation.getUserId())
                 .setExpiration(expiryDate)
-                .claim("roles", getRolesFrom(grantedAuthorities))
+                .claim("roles", getRolesFrom(userTokenInformation.getAuthorities()))
                 .compact();
         return new AccessToken(tokenValue, expiryDate.toInstant());
     }

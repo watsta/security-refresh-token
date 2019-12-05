@@ -2,6 +2,7 @@ package hu.krisz.securityrefreshtoken.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.krisz.securityrefreshtoken.security.token.TokenResponse;
+import hu.krisz.securityrefreshtoken.security.token.UserTokenInformation;
 import hu.krisz.securityrefreshtoken.security.token.access.AccessTokenService;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -34,7 +35,8 @@ public class CredentialsAuthenticationSuccessHandler implements AuthenticationSu
             Authentication authentication) throws IOException {
         var userDetails = (UserDetails) authentication.getPrincipal();
 
-        var accessToken = accessTokenService.create(userDetails.getUsername(), userDetails.getAuthorities());
+        var userTokenInformation = new UserTokenInformation(userDetails.getUsername(), userDetails.getAuthorities());
+        var accessToken = accessTokenService.create(userTokenInformation);
         var tokenResponse = new TokenResponse(accessToken.getTokenValue(), accessToken.expiresIn());
 
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
