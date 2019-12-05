@@ -29,10 +29,11 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        var token = request.getHeader("Authorization");
-        if (token == null) {
+        var authHeader = request.getHeader("Authorization");
+        if (authHeader == null) {
             throw new InvalidTokenException("invalid token");
         }
+        var token = authHeader.replace("Bearer ", "");
         var parsedToken = accessTokenService.parse(token);
         var authentication = new UsernamePasswordAuthenticationToken(
                 parsedToken.getUserId(),
