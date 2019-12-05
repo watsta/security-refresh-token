@@ -62,6 +62,35 @@ public class AuthenticationTest {
     }
 
     @Test
+    public void testRefresh() throws Exception {
+        TokenResponse loginResponse = login();
+
+        assertThat(loginResponse.getRefreshToken(), is(notNullValue()));
+
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("refresh_token", loginResponse.getRefreshToken());
+
+        var result = mvc.perform(MockMvcRequestBuilders
+                .post("/refresh")
+                .params(params))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        var refreshResponse = objectMapper.readValue(result, TokenResponse.class);
+
+        assertThat(refreshResponse.getAccessToken(), is(notNullValue()));
+        assertThat(refreshResponse.getRefreshToken(), is(notNullValue()));
+        assertTrue(refreshResponse.getExpiresIn() > 0);
+
+        // making sure the old refresh token can't be used anymore
+        mvc.perform(MockMvcRequestBuilders
+                .post("/refresh")
+                .params(params))
+                .andExpect(MockMvcResultMatchers.status().isUnauthorized());
+    }
+
+    @Test
     public void testGetRandomAfterLogin() throws Exception {
         TokenResponse tokenResponse = login();
 
