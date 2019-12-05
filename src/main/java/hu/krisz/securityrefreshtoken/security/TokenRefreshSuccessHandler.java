@@ -59,6 +59,6 @@ public class TokenRefreshSuccessHandler implements AuthenticationSuccessHandler 
         refreshTokenService.storeRefreshToken(newRefreshToken);
         var userTokenInformation = new UserTokenInformation(userDetails.getUsername(), userDetails.getAuthorities());
         var newAccessToken = accessTokenService.create(userTokenInformation);
-        return new TokenResponse(newAccessToken.getTokenValue(), newRefreshToken.getTokenValue(), newAccessToken.expiresIn());
+        return new TokenResponse(newRefreshToken.getTokenValue(), newAccessToken.getTokenValue(), newAccessToken.expiresIn());
     }
 }
