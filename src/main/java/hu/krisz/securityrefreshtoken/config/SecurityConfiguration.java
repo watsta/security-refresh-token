@@ -1,8 +1,7 @@
 package hu.krisz.securityrefreshtoken.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import hu.krisz.securityrefreshtoken.security.CredentialsAuthenticationSuccessHandler;
-import hu.krisz.securityrefreshtoken.security.JwtAuthorizationFilter;
+import hu.krisz.securityrefreshtoken.security.*;
 import hu.krisz.securityrefreshtoken.security.token.access.AccessTokenService;
 import hu.krisz.securityrefreshtoken.security.token.refresh.InMemoryRefreshTokenStore;
 import hu.krisz.securityrefreshtoken.security.token.refresh.RefreshTokenService;
@@ -24,6 +23,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 @EnableWebSecurity
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     private static final String LOGIN_URL = "/login";
+    private static final String REFRESH_URL = "/refresh";
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -37,20 +37,22 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 .roles("admin");
 
         auth.authenticationProvider(daoAuthenticationProvider());
+        auth.authenticationProvider(refreshTokenAuthenticationProvider());
     }
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.authorizeRequests(configurer ->
                 configurer
-                        .antMatchers(HttpMethod.POST, LOGIN_URL).permitAll()
+                        .antMatchers(HttpMethod.POST, LOGIN_URL, REFRESH_URL).permitAll()
                         .anyRequest().authenticated()
         ).csrf(configurer ->
                 configurer.disable()
         ).sessionManagement(configurer ->
                 configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         ).addFilter(usernamePasswordAuthenticationFilter())
-        .addFilterAfter(jwtAuthorizationFilterBean(), UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(refreshTokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(jwtAuthorizationFilter(), RefreshTokenAuthenticationFilter.class);
     }
 
     private UsernamePasswordAuthenticationFilter usernamePasswordAuthenticationFilter() throws Exception {
@@ -62,18 +64,20 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
         return filter;
     }
 
-    @Bean
-    public CredentialsAuthenticationSuccessHandler credentialsAuthenticationSuccessHandlerBean() {
-        return new CredentialsAuthenticationSuccessHandler(accessTokenServiceBean(), refreshTokenService(), objectMapper);
+    private RefreshTokenAuthenticationFilter refreshTokenAuthenticationFilter() throws Exception {
+        var filter = new RefreshTokenAuthenticationFilter(new AntPathRequestMatcher(REFRESH_URL, "POST"));
+        filter.setAuthenticationManager(authenticationManager());
+        filter.setAuthenticationSuccessHandler(tokenRefreshSuccessHandlerBean());
+        return filter;
     }
 
-    @Bean
-    public AccessTokenService accessTokenServiceBean() {
-        return new AccessTokenService(Keys.secretKeyFor(SignatureAlgorithm.HS512), 300);
+    private JwtAuthorizationFilter jwtAuthorizationFilter() {
+        return new JwtAuthorizationFilter(accessTokenServiceBean());
     }
 
-    private RefreshTokenService refreshTokenService() {
-        return new RefreshTokenService(refreshTokenStore(), 864_000);
+
+    private RefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider() {
+        return new RefreshTokenAuthenticationProvider(refreshTokenServiceBean());
     }
 
     private DaoAuthenticationProvider daoAuthenticationProvider() {
@@ -83,11 +87,27 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public JwtAuthorizationFilter jwtAuthorizationFilterBean() {
-        return new JwtAuthorizationFilter(accessTokenServiceBean());
+    public CredentialsAuthenticationSuccessHandler credentialsAuthenticationSuccessHandlerBean() {
+        return new CredentialsAuthenticationSuccessHandler(accessTokenServiceBean(), refreshTokenServiceBean(), objectMapper);
     }
 
-    private RefreshTokenStore refreshTokenStore() {
+    @Bean
+    public AccessTokenService accessTokenServiceBean() {
+        return new AccessTokenService(Keys.secretKeyFor(SignatureAlgorithm.HS512), 300);
+    }
+
+    @Bean
+    public RefreshTokenService refreshTokenServiceBean() {
+        return new RefreshTokenService(refreshTokenStoreBean(), 864_000);
+    }
+
+    @Bean
+    public TokenRefreshSuccessHandler tokenRefreshSuccessHandlerBean() {
+        return new TokenRefreshSuccessHandler(accessTokenServiceBean(), refreshTokenServiceBean(), userDetailsService(), objectMapper);
+    }
+
+    @Bean
+    public RefreshTokenStore refreshTokenStoreBean() {
         return new InMemoryRefreshTokenStore();
     }
 }
