@@ -18,7 +18,7 @@ public class RefreshTokenAuthenticationFilter extends AbstractAuthenticationProc
      */
     private static final String REFRESH_TOKEN_PARAMETER = "refresh_token";
 
-    protected RefreshTokenAuthenticationFilter(RequestMatcher requestMatcher) {
+    public RefreshTokenAuthenticationFilter(RequestMatcher requestMatcher) {
         super(requestMatcher);
     }
 
