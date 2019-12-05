@@ -22,6 +22,10 @@ public class RefreshTokenService {
         return new RefreshToken(userId, generateRefreshToken(), generateExpiryDate());
     }
 
+    public RefreshToken generateRefreshToken(String userId, Instant expiryDate) {
+        return new RefreshToken(userId, generateRefreshToken(), expiryDate);
+    }
+
     public void storeRefreshToken(RefreshToken refreshToken) {
         refreshTokenStore.storeRefreshToken(refreshToken);
     }
